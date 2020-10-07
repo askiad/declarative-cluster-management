@@ -14,15 +14,12 @@ import com.google.ortools.sat.IntervalVar;
 import com.google.ortools.sat.LinearExpr;
 import com.google.ortools.sat.Literal;
 import com.google.ortools.util.Domain;
-import org.apache.commons.lang3.ArrayUtils;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
-import java.util.stream.IntStream;
 
 public class Ops {
     private final CpModel model;
@@ -390,7 +387,7 @@ public class Ops {
         final IntVar bool = model.newBoolVar("");
         final Domain domain = Domain.fromValues(right.stream().mapToLong(encoder::toLong).toArray());
         model.addLinearExpressionInDomain(left, domain).onlyEnforceIf(bool);
-        model.addLinearExpressionInDomain(left, domain.complement()).onlyEnforceIf(bool.not());
+//        model.addLinearExpressionInDomain(left, domain.complement()).onlyEnforceIf(bool.not());
         return bool;
     }
 
@@ -455,6 +452,14 @@ public class Ops {
             }
         }
         return true;
+    }
+
+    public void allDifferentPref(final List<IntVar> list) {
+        for (int i = 0; i < list.size() - 1; i++) {
+            final IntVar bool = model.newBoolVar("");
+            model.addLessThan(list.get(i), list.get(i + 1)).onlyEnforceIf(bool);
+            model.maximize(bool);
+        }
     }
 
     public IntVar toConst(final boolean expr) {
@@ -556,59 +561,12 @@ public class Ops {
         }
 
         // Cumulative score
-        final IntVar[] maximumLoads = new IntVar[maxCapacities.size()];
         for (int i = 0; i < numResources; i++) {
             final IntVar max = model.newIntVar(0, scale, "");
             model.addCumulative(tasksIntervals, taskDemands.get(i), max);
-            maximumLoads[i] = max;
+            model.minimize(max);
         }
-        model.minimize(LinearExpr.sum(maximumLoads));
 
-        // Prefer less loaded nodes
-        final int[] nodeIdToLoad = new int[domainArr.length];
-        for (int node = 0; node < domainArr.length; node++) {
-            int incidentLoadOnNode = 0;
-            for (int task = 0; task < numTasks; task++) {
-                for (int resource = 0; resource < numResources; resource++) {
-                    incidentLoadOnNode +=
-                            (capacities.get(resource).get(node) - (taskDemands.get(resource)[task] * 100))
-                                    / capacities.get(resource).get(node);
-                }
-            }
-            nodeIdToLoad[node] = incidentLoadOnNode;
-        }
-        final long[] domainSortedByLoad = IntStream.range(0, domainArr.length)
-                .boxed()
-                .sorted(Comparator.comparingInt(idx -> -nodeIdToLoad[idx]))
-                .mapToLong(idx -> domainArr[idx])
-                .toArray();
-        final int maxNumBuckets = 10;
-        final int bucketSize = Math.max(domainSortedByLoad.length / maxNumBuckets, 1);
-
-        Preconditions.checkArgument(domainSortedByLoad.length == domainArr.length);
-        long nodesConsidered = 0;
-
-        final List<IntVar> bools = new ArrayList<>();
-        for (int i = 0; i < domainSortedByLoad.length; i += bucketSize) {
-            final long[] subArray = Arrays.copyOfRange(domainSortedByLoad, i, i + bucketSize);
-            for (final IntVar assignmentVar: taskToNodeAssignment) {
-                final IntVar boolVar;
-                if (configUseFullReifiedConstraintsForJoinPreferences) {
-                    boolVar = inLong(assignmentVar, Arrays.asList(ArrayUtils.toObject(subArray)));
-                } else {
-                    boolVar = model.newBoolVar("");
-                    model.addLinearExpressionInDomain(assignmentVar, Domain.fromValues(subArray))
-                            .onlyEnforceIf(boolVar);
-                }
-                bools.add(boolVar);
-            }
-            nodesConsidered += subArray.length;
-            if (nodesConsidered >= (taskToNodeAssignment.length * 2)) {
-                break;
-            }
-        }
-        final IntVar enforcement = model.newBoolVar("");
-        model.addBoolOr(bools.toArray(new IntVar[0])).onlyEnforceIf(enforcement);
-        model.maximize(enforcement);
+        allDifferentPref(varsToAssign);
     }
 }
