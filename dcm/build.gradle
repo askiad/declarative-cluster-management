@@ -6,7 +6,9 @@
 plugins {
     id 'maven-publish'
     id 'signing'
+    id 'info.solidsoft.pitest' version '1.5.2'
 }
+
 
 dependencies {
     implementation "org.freemarker:freemarker:${freemarkerVersion}"
@@ -30,6 +32,12 @@ dependencies {
 java {
     withJavadocJar()
     withSourcesJar()
+}
+
+pitest {
+    //adds dependency to org.pitest:pitest-junit5-plugin and sets "testPlugin" to "junit5"
+    junit5PluginVersion = '0.12'
+    // ...
 }
 
 publishing {
