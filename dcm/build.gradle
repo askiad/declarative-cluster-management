@@ -37,7 +37,7 @@ java {
 pitest {
     //adds dependency to org.pitest:pitest-junit5-plugin and sets "testPlugin" to "junit5"
     junit5PluginVersion = '0.12'
-    // ...
+    pitestVersion = '1.5.3-SNAPSHOT'
 }
 
 publishing {

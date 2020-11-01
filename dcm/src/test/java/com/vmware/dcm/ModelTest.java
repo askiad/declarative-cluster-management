@@ -1912,7 +1912,7 @@ public class ModelTest {
     }
 
     static Stream<SolverConfig> solvers() {
-        return Stream.of(SolverConfig.OrToolsSolver);
+        return Stream.of(SolverConfig.OrToolsSolver, SolverConfig.MinizincSolver);
     }
 
     enum SolverConfig {
