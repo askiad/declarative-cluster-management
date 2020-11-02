@@ -13,17 +13,13 @@ import com.vmware.dcm.backend.ortools.OrToolsSolver;
 import org.jooq.DSLContext;
 import org.jooq.Record;
 import org.jooq.Result;
-import org.jooq.impl.DSL;
 import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.File;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import static org.jooq.impl.DSL.using;
@@ -110,7 +106,7 @@ public class ModelTest {
         assertEquals(2, fetch.get(2).get("CONTROLLABLE__C3"));
         assertEquals(2, fetch.get(3).get("CONTROLLABLE__C3"));
     }
-
+/*
     @Test
     public void allDifferentTest() {
         final DSLContext conn = DSL.using("jdbc:h2:mem:");
@@ -197,7 +193,7 @@ public class ModelTest {
         assertNotEquals(controllableVars.get(0), controllableVars.get(1));
         assertEquals(3, controllableVars.get(2));
     }
-
+*/
 
     @ParameterizedTest
     @MethodSource("solvers")
@@ -584,79 +580,79 @@ public class ModelTest {
     }
 
 
-    @Test
-    public void testAggregateKubernetesBug() {
-        // model and data files will use this as its name
-        final String modelName = "testAggregateWithMultiplePredicates";
-
-        // create database
-        final DSLContext conn = setup();
-
-        conn.execute("create table node_info\n" +
-                "(\n" +
-                "  name varchar(36) not null primary key,\n" +
-                "  unschedulable boolean not null,\n" +
-                "  out_of_disk boolean not null,\n" +
-                "  memory_pressure boolean not null,\n" +
-                "  disk_pressure boolean not null,\n" +
-                "  pid_pressure boolean not null,\n" +
-                "  ready boolean not null,\n" +
-                "  network_unavailable boolean not null,\n" +
-                "  cpu_capacity bigint not null,\n" +
-                "  memory_capacity bigint not null,\n" +
-                "  ephemeral_storage_capacity bigint not null,\n" +
-                "  pods_capacity bigint not null,\n" +
-                "  cpu_allocatable bigint not null,\n" +
-                "  memory_allocatable bigint not null,\n" +
-                "  ephemeral_storage_allocatable bigint not null,\n" +
-                "  pods_allocatable bigint not null\n" +
-                ")\n");
-        conn.execute("create table pod_info\n" +
-                "(\n" +
-                "  pod_name varchar(100) not null primary key,\n" +
-                "  status varchar(36) not null,\n" +
-                "  node_name varchar(36) not null,\n" +
-                "  controllable__node_name varchar(36) not null,\n" +
-                "  cpu_request bigint not null,\n" +
-                "  memory_request bigint not null,\n" +
-                "  ephemeral_storage_request bigint not null,\n" +
-                "  pods_request bigint not null,\n" +
-                "  foreign key(controllable__node_name) references node_info(name)\n" +
-                ")\n");
-
-        conn.execute("\n" +
-                "create table labels_to_check_for_presence\n" +
-                "(\n" +
-                "  label_key varchar(100) not null,\n" +
-                "  present boolean not null\n" +
-                ")"
-        );
-        conn.execute("\n" +
-                "-- Tracks the set of labels per node\n" +
-                "create table node_labels\n" +
-                "(\n" +
-                "  node_name varchar(36) not null,\n" +
-                "  label_key varchar(100) not null,\n" +
-                "  label_value varchar(36) not null,\n" +
-                "  foreign key(node_name) references node_info(name)\n" +
-                ")\n"
-        );
-        final List<String> views = toListOfViews("create view constraint_valid_nodes as\n" +
-                "select * from pod_info\n" +
-                "check\n" +
-                "not(status = 'Pending') or\n" +
-                "pod_info.controllable__node_name in\n" +
-                "  (select node_labels.node_name from node_labels\n" +
-                "   join labels_to_check_for_presence\n" +
-                "        on node_labels.label_key = labels_to_check_for_presence.label_key\n" +
-                "   group by node_labels.node_name\n" +
-                "   having count(node_labels.label_key) = (select count(*) from labels_to_check_for_presence));");
-
-        // build model
-        final Model model = buildModel(conn, SolverConfig.OrToolsSolver, views, modelName);
-        model.updateData();
-        model.solve("POD_INFO");
-    }
+//    @Test
+//    public void testAggregateKubernetesBug() {
+//        // model and data files will use this as its name
+//        final String modelName = "testAggregateWithMultiplePredicates";
+//
+//        // create database
+//        final DSLContext conn = setup();
+//
+//        conn.execute("create table node_info\n" +
+//                "(\n" +
+//                "  name varchar(36) not null primary key,\n" +
+//                "  unschedulable boolean not null,\n" +
+//                "  out_of_disk boolean not null,\n" +
+//                "  memory_pressure boolean not null,\n" +
+//                "  disk_pressure boolean not null,\n" +
+//                "  pid_pressure boolean not null,\n" +
+//                "  ready boolean not null,\n" +
+//                "  network_unavailable boolean not null,\n" +
+//                "  cpu_capacity bigint not null,\n" +
+//                "  memory_capacity bigint not null,\n" +
+//                "  ephemeral_storage_capacity bigint not null,\n" +
+//                "  pods_capacity bigint not null,\n" +
+//                "  cpu_allocatable bigint not null,\n" +
+//                "  memory_allocatable bigint not null,\n" +
+//                "  ephemeral_storage_allocatable bigint not null,\n" +
+//                "  pods_allocatable bigint not null\n" +
+//                ")\n");
+//        conn.execute("create table pod_info\n" +
+//                "(\n" +
+//                "  pod_name varchar(100) not null primary key,\n" +
+//                "  status varchar(36) not null,\n" +
+//                "  node_name varchar(36) not null,\n" +
+//                "  controllable__node_name varchar(36) not null,\n" +
+//                "  cpu_request bigint not null,\n" +
+//                "  memory_request bigint not null,\n" +
+//                "  ephemeral_storage_request bigint not null,\n" +
+//                "  pods_request bigint not null,\n" +
+//                "  foreign key(controllable__node_name) references node_info(name)\n" +
+//                ")\n");
+//
+//        conn.execute("\n" +
+//                "create table labels_to_check_for_presence\n" +
+//                "(\n" +
+//                "  label_key varchar(100) not null,\n" +
+//                "  present boolean not null\n" +
+//                ")"
+//        );
+//        conn.execute("\n" +
+//                "-- Tracks the set of labels per node\n" +
+//                "create table node_labels\n" +
+//                "(\n" +
+//                "  node_name varchar(36) not null,\n" +
+//                "  label_key varchar(100) not null,\n" +
+//                "  label_value varchar(36) not null,\n" +
+//                "  foreign key(node_name) references node_info(name)\n" +
+//                ")\n"
+//        );
+//        final List<String> views = toListOfViews("create view constraint_valid_nodes as\n" +
+//                "select * from pod_info\n" +
+//                "check\n" +
+//                "not(status = 'Pending') or\n" +
+//                "pod_info.controllable__node_name in\n" +
+//                "  (select node_labels.node_name from node_labels\n" +
+//                "   join labels_to_check_for_presence\n" +
+//                "        on node_labels.label_key = labels_to_check_for_presence.label_key\n" +
+//                "   group by node_labels.node_name\n" +
+//                "   having count(node_labels.label_key) = (select count(*) from labels_to_check_for_presence));");
+//
+//        // build model
+//        final Model model = buildModel(conn, SolverConfig.OrToolsSolver, views, modelName);
+//        model.updateData();
+//        model.solve("POD_INFO");
+//    }
 
     @ParameterizedTest
     @MethodSource("solvers")
@@ -1776,94 +1772,94 @@ public class ModelTest {
     }
 
 
-    @Test
-    public void corfuModel() {
-        // model and data files will use this as its name
-        final String modelName = "corfuModel";
-
-        // create database
-        final DSLContext conn = setup();
-
-        conn.execute("CREATE TABLE epochs (" +
-                "epoch_id bigint PRIMARY KEY" +
-                ")"
-        );
-        conn.execute("CREATE TABLE cluster_id (" +
-                "cluster_id varchar(36)," +
-                "epoch_id bigint NOT NULL," +
-                "FOREIGN KEY(epoch_id) REFERENCES epochs(epoch_id)," +
-                "PRIMARY KEY (cluster_id, epoch_id)" +
-                ")"
-        );
-        conn.execute("CREATE TABLE hosts (" +
-                "host_id varchar(36)," +
-                "epoch_id bigint NOT NULL," +
-                "failure_state varchar(36) NOT NULL," +
-                "hostname varchar(36) NOT NULL, " +
-                "controllable__is_layout_server boolean NOT NULL DEFAULT false," +
-                "controllable__is_sequencer boolean NOT NULL DEFAULT false," +
-                "controllable__in_segment boolean NOT NULL DEFAULT false," +
-                "is_layout_server boolean NOT NULL DEFAULT false," +
-                "is_sequencer boolean NOT NULL DEFAULT false," +
-                "in_segment boolean NOT NULL DEFAULT false," +
-                "FOREIGN KEY(epoch_id) REFERENCES epochs(epoch_id)," +
-                "PRIMARY KEY (host_id, epoch_id)," +
-                "CHECK (failure_state IN ('ACTIVE', 'UNRESPONSIVE', 'HEALING'))" +
-                ")"
-        );
-        conn.execute("CREATE TABLE segments (" +
-                "segment_id varchar(36) NOT NULL," +
-                "epoch_id bigint NOT NULL," +
-                "replication_mode varchar(36) NOT NULL," +
-                "segment_start bigint NOT NULL," +
-                "segment_end bigint NOT NULL," +
-                "FOREIGN KEY(epoch_id) REFERENCES epochs(epoch_id)," +
-                "PRIMARY KEY (segment_id, epoch_id)," +
-                "CHECK (replication_mode IN ('CHAIN_REPLICATION', 'QUORUM_REPLICATION', 'NO_REPLICATION'))" +
-                ")"
-        );
-        conn.execute("CREATE TABLE stripes (" +
-                "stripe_id varchar(36) NOT NULL," +
-                "controllable__host_id varchar(36) NOT NULL," +
-                "epoch_id bigint NOT NULL," +
-                "segment_id varchar(36) NOT NULL," +
-                "FOREIGN KEY (controllable__host_id, epoch_id) REFERENCES hosts(host_id, epoch_id)," +
-                "FOREIGN KEY (segment_id, epoch_id) REFERENCES segments(segment_id, epoch_id)," +
-                "PRIMARY KEY (stripe_id, controllable__host_id, epoch_id)" +
-                ")"
-        );
-
-        // non-constraint views
-        final List<String> views = toListOfViews("create view constraint_retain_old_values_hosts as\n" +
-                "select * from hosts check epoch_id = (select max(epoch_id) from hosts as A) or\n" +
-                "         (controllable__is_layout_server = is_layout_server and\n" +
-                "         controllable__is_sequencer = is_sequencer and\n" +
-                "         controllable__in_segment = in_segment);\n" +
-                "\n" +
-                "create view constraint_minimal_layouts as\n" +
-                "select * from hosts where epoch_id = (select max(epoch_id) from hosts as A)\n" +
-                "         check sum(controllable__is_layout_server) >= 2;\n" +
-                "\n" +
-                "create view constraint_minimal_sequencers as\n" +
-                "select * from hosts where epoch_id = (select max(epoch_id) from hosts as A)\n" +
-                "         check sum(controllable__is_sequencer) >= 2;\n" +
-                "\n" +
-                "create view constraint_minimal_segments as\n" +
-                "select * from hosts where epoch_id = (select max(epoch_id) from hosts as A)\n" +
-                "         check sum(controllable__in_segment) >= 2;\n" +
-                "\n" +
-                "create view constraint_purge_policy as\n" +
-                "select * from hosts check epoch_id = (select max(epoch_id) from hosts as A) and\n" +
-                "         failure_state = 'UNRESPONSIVE' and\n" +
-                "         controllable__is_layout_server = true and\n" +
-                "         controllable__is_sequencer = true and\n" +
-                "         controllable__in_segment = true");
-
-        // build model
-        final Model model = buildModel(conn, SolverConfig.OrToolsSolver, views, modelName);
-        model.updateData();
-        model.solve(Set.of("HOSTS", "STRIPES"));
-    }
+//    @Test
+//    public void corfuModel() {
+//        // model and data files will use this as its name
+//        final String modelName = "corfuModel";
+//
+//        // create database
+//        final DSLContext conn = setup();
+//
+//        conn.execute("CREATE TABLE epochs (" +
+//                "epoch_id bigint PRIMARY KEY" +
+//                ")"
+//        );
+//        conn.execute("CREATE TABLE cluster_id (" +
+//                "cluster_id varchar(36)," +
+//                "epoch_id bigint NOT NULL," +
+//                "FOREIGN KEY(epoch_id) REFERENCES epochs(epoch_id)," +
+//                "PRIMARY KEY (cluster_id, epoch_id)" +
+//                ")"
+//        );
+//        conn.execute("CREATE TABLE hosts (" +
+//                "host_id varchar(36)," +
+//                "epoch_id bigint NOT NULL," +
+//                "failure_state varchar(36) NOT NULL," +
+//                "hostname varchar(36) NOT NULL, " +
+//                "controllable__is_layout_server boolean NOT NULL DEFAULT false," +
+//                "controllable__is_sequencer boolean NOT NULL DEFAULT false," +
+//                "controllable__in_segment boolean NOT NULL DEFAULT false," +
+//                "is_layout_server boolean NOT NULL DEFAULT false," +
+//                "is_sequencer boolean NOT NULL DEFAULT false," +
+//                "in_segment boolean NOT NULL DEFAULT false," +
+//                "FOREIGN KEY(epoch_id) REFERENCES epochs(epoch_id)," +
+//                "PRIMARY KEY (host_id, epoch_id)," +
+//                "CHECK (failure_state IN ('ACTIVE', 'UNRESPONSIVE', 'HEALING'))" +
+//                ")"
+//        );
+//        conn.execute("CREATE TABLE segments (" +
+//                "segment_id varchar(36) NOT NULL," +
+//                "epoch_id bigint NOT NULL," +
+//                "replication_mode varchar(36) NOT NULL," +
+//                "segment_start bigint NOT NULL," +
+//                "segment_end bigint NOT NULL," +
+//                "FOREIGN KEY(epoch_id) REFERENCES epochs(epoch_id)," +
+//                "PRIMARY KEY (segment_id, epoch_id)," +
+//                "CHECK (replication_mode IN ('CHAIN_REPLICATION', 'QUORUM_REPLICATION', 'NO_REPLICATION'))" +
+//                ")"
+//        );
+//        conn.execute("CREATE TABLE stripes (" +
+//                "stripe_id varchar(36) NOT NULL," +
+//                "controllable__host_id varchar(36) NOT NULL," +
+//                "epoch_id bigint NOT NULL," +
+//                "segment_id varchar(36) NOT NULL," +
+//                "FOREIGN KEY (controllable__host_id, epoch_id) REFERENCES hosts(host_id, epoch_id)," +
+//                "FOREIGN KEY (segment_id, epoch_id) REFERENCES segments(segment_id, epoch_id)," +
+//                "PRIMARY KEY (stripe_id, controllable__host_id, epoch_id)" +
+//                ")"
+//        );
+//
+//        // non-constraint views
+//        final List<String> views = toListOfViews("create view constraint_retain_old_values_hosts as\n" +
+//                "select * from hosts check epoch_id = (select max(epoch_id) from hosts as A) or\n" +
+//                "         (controllable__is_layout_server = is_layout_server and\n" +
+//                "         controllable__is_sequencer = is_sequencer and\n" +
+//                "         controllable__in_segment = in_segment);\n" +
+//                "\n" +
+//                "create view constraint_minimal_layouts as\n" +
+//                "select * from hosts where epoch_id = (select max(epoch_id) from hosts as A)\n" +
+//                "         check sum(controllable__is_layout_server) >= 2;\n" +
+//                "\n" +
+//                "create view constraint_minimal_sequencers as\n" +
+//                "select * from hosts where epoch_id = (select max(epoch_id) from hosts as A)\n" +
+//                "         check sum(controllable__is_sequencer) >= 2;\n" +
+//                "\n" +
+//                "create view constraint_minimal_segments as\n" +
+//                "select * from hosts where epoch_id = (select max(epoch_id) from hosts as A)\n" +
+//                "         check sum(controllable__in_segment) >= 2;\n" +
+//                "\n" +
+//                "create view constraint_purge_policy as\n" +
+//                "select * from hosts check epoch_id = (select max(epoch_id) from hosts as A) and\n" +
+//                "         failure_state = 'UNRESPONSIVE' and\n" +
+//                "         controllable__is_layout_server = true and\n" +
+//                "         controllable__is_sequencer = true and\n" +
+//                "         controllable__in_segment = true");
+//
+//        // build model
+//        final Model model = buildModel(conn, SolverConfig.OrToolsSolver, views, modelName);
+//        model.updateData();
+//        model.solve(Set.of("HOSTS", "STRIPES"));
+//    }
 
     /**
      * Splits the supplied SQL by ';'
