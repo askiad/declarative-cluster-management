@@ -54,15 +54,15 @@ public class Ops {
     }
 
     public IntVar sumV(final List<IntVar> data) {
-        long domainMin = 0;
-        long domainMax = 0;
+        long lowerBound = 0;
+        long upperBound = 0;
         final IntVar[] arr = new IntVar[data.size()];
         for (int i = 0; i < data.size(); i++) {
-            domainMin += data.get(i).getDomain().min();
-            domainMax += data.get(i).getDomain().max();
+            lowerBound += data.get(i).getDomain().min();
+            upperBound += data.get(i).getDomain().max();
             arr[i] = data.get(i);
         }
-        final IntVar ret = model.newIntVar(domainMin, domainMax, "");
+        final IntVar ret = model.newIntVar(lowerBound, upperBound, "");
         model.addEquality(ret, LinearExpr.sum(arr));
         return ret;
     }
@@ -109,15 +109,15 @@ public class Ops {
     }
 
     public IntVar maxVIntVar(final List<IntVar> data) {
-        long domainMin = Long.MIN_VALUE;
-        long domainMax = Long.MIN_VALUE;
+        long lowerBound = Long.MIN_VALUE;
+        long upperBound = Long.MIN_VALUE;
         final IntVar[] arr = new IntVar[data.size()];
         for (int i = 0; i < data.size(); i++) {
-            domainMin = Math.max(domainMin, data.get(i).getDomain().min());
-            domainMax = Math.max(domainMax, data.get(i).getDomain().max());
+            lowerBound = Math.max(lowerBound, data.get(i).getDomain().min());
+            upperBound = Math.max(upperBound, data.get(i).getDomain().max());
             arr[i] = data.get(i);
         }
-        final IntVar ret = model.newIntVar(domainMin, domainMax, "");
+        final IntVar ret = model.newIntVar(lowerBound, upperBound, "");
         model.addMaxEquality(ret, arr);
         return ret;
     }
@@ -131,15 +131,15 @@ public class Ops {
     }
 
     public IntVar minVIntVar(final List<IntVar> data) {
-        long domainMin = Long.MAX_VALUE;
-        long domainMax = Long.MAX_VALUE;
+        long lowerBound = Long.MAX_VALUE;
+        long upperBound = Long.MAX_VALUE;
         final IntVar[] arr = new IntVar[data.size()];
         for (int i = 0; i < data.size(); i++) {
-            domainMin = Math.min(domainMin, data.get(i).getDomain().min());
-            domainMax = Math.min(domainMax, data.get(i).getDomain().max());
+            lowerBound = Math.min(lowerBound, data.get(i).getDomain().min());
+            upperBound = Math.min(upperBound, data.get(i).getDomain().max());
             arr[i] = data.get(i);
         }
-        final IntVar ret = model.newIntVar(domainMin, domainMax, "");
+        final IntVar ret = model.newIntVar(lowerBound, upperBound, "");
         model.addMinEquality(ret, arr);
         return ret;
     }
