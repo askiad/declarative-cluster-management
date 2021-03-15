@@ -112,6 +112,43 @@ public class ModelTest {
         assertEquals(result.get(0).get(1), 10);
     }
 
+    @Test
+    public void partitionTest() {
+        final String modelName = "partitionTest";
+
+        final DSLContext conn = setup();
+        conn.execute("create table node(id integer, az varchar(30), cpu integer, primary key (id))");
+        conn.execute("create table pod(id integer, controllable__node integer, controllable__az varchar(30), " +
+                        "primary key (id), foreign key (controllable__node) references node(id))");
+
+        final List<String> views = toListOfViews(
+                "CREATE VIEW constraint_az AS " +
+                "SELECT * FROM pod " +
+                "JOIN node on node.id = pod.controllable__node " +
+                "check pod.controllable__az = node.az;"
+                 +
+                "CREATE VIEW constraint_all_diff AS " +
+                "SELECT * FROM pod " +
+                "check all_different(pod.controllable__az) = true;"
+        );
+
+        final Model model = buildModel(conn, SolverConfig.OrToolsSolver, views, modelName);
+
+        conn.execute("insert into pod values (1, null, null)");
+        conn.execute("insert into pod values (2, null, null)");
+        conn.execute("insert into node values (1, 'dc1', 5)");
+        conn.execute("insert into node values (2, 'dc1', 10)");
+        conn.execute("insert into node values (3, 'dc2', 10)");
+
+        model.updateData();
+        final Result<? extends Record> fetch = model.solve("POD");
+        System.out.println(conn.fetch("select * from node"));
+        System.out.println(conn.fetch("select * from pod"));
+        System.out.println(fetch);
+        assertEquals(2, fetch.size());
+    }
+
+
     @ParameterizedTest
     @MethodSource("solvers")
     public void testIndexGen(final SolverConfig solver) {
