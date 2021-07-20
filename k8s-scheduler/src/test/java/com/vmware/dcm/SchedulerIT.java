@@ -9,6 +9,7 @@ package com.vmware.dcm;
 import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import com.vmware.dcm.trace.TraceReplayer;
+import com.vmware.dcm.KubernetesLocalExpr;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -128,4 +129,13 @@ public class SchedulerIT extends ITBase {
         scheduler.shutdown();
     }
 
+    @Tag("integration-test")
+    @Test()
+    @Timeout(60 /* seconds */)
+    public void testLocalKubernetes() throws Exception {
+        final KubernetesPodDeployer deployer = new KubernetesPodDeployer(fabricClient, "default");
+        final KubernetesLocalExpr expr = new KubernetesLocalExpr();
+        expr.run(fabricClient, "priority-test/test-config.yml", deployer);
+    }
+    
 }
