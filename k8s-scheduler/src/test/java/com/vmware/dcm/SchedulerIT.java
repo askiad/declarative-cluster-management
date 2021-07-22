@@ -10,6 +10,8 @@ import io.fabric8.kubernetes.api.model.Pod;
 import io.fabric8.kubernetes.api.model.apps.Deployment;
 import com.vmware.dcm.trace.TraceReplayer;
 import com.vmware.dcm.KubernetesLocalExpr;
+import com.vmware.dcm.WorkloadGeneratorIT.LoggingNodeWatcher;
+import com.vmware.dcm.WorkloadGeneratorIT.LoggingPodWatcher;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
@@ -132,10 +134,22 @@ public class SchedulerIT extends ITBase {
     @Tag("integration-test")
     @Test()
     @Timeout(60 /* seconds */)
-    public void testLocalKubernetes() throws Exception {
+    public void testPrioritySimple() throws Exception {
         final KubernetesPodDeployer deployer = new KubernetesPodDeployer(fabricClient, "default");
         final KubernetesLocalExpr expr = new KubernetesLocalExpr();
-        expr.run(fabricClient, "priority-test/test-config.yml", deployer);
+        expr.runSimple(fabricClient, "priority-test/test-config.yml", deployer);
     }
-    
+
+    @Tag("integration-test")
+    @Test()
+    @Timeout(60 /* seconds */)
+    public void testPriorityFull() throws Exception {
+        final long traceId = System.currentTimeMillis();
+        fabricClient.pods().inAnyNamespace().watch(new LoggingPodWatcher(traceId));
+        fabricClient.nodes().watch(new LoggingNodeWatcher(traceId));
+
+        final KubernetesPodDeployer deployer = new KubernetesPodDeployer(fabricClient, "default");
+        final KubernetesLocalExpr expr = new KubernetesLocalExpr();
+        expr.runFull(fabricClient, "priority-test/test-config.yml", deployer);
+    }    
 }

@@ -35,7 +35,8 @@ public class KubernetesLocalExpr {
     private final ListeningScheduledExecutorService scheduledExecutorService =
             MoreExecutors.listeningDecorator(Executors.newScheduledThreadPool(100));
 
-    public void run(final NamespacedKubernetesClient client, final String configFileName, final IPodDeployer deployer)
+    public void runSimple(final NamespacedKubernetesClient client, final String configFileName,
+                          final IPodDeployer deployer)
             throws Exception {
         // TODO: rich log info
         LOG.info("Creating local deployment");
@@ -45,20 +46,21 @@ public class KubernetesLocalExpr {
         try (final InputStream inputStream = getClass().getClassLoader().getResourceAsStream(configFileName)) {
             final Yaml yaml = new Yaml();
             final Map<String, Object> config = yaml.load(inputStream);
-            final int podsPerPriorityLevel = (int) config.get("podsPerPriorityLevel");
+            final int podsPerPriority = (int) config.get("highPriorityPods");
             final int pr1StartTimeSec = (int) config.get("pr1StartTimeSec");
             final int pr2StartTimeSec = (int) config.get("pr2StartTimeSec");
             final int pr2EndTimeSec = (int) config.get("pr2EndTimeSec");
             final int pr1EndTimeSec = (int) config.get("pr1EndTimeSec");
             final int waitTimeSec = (int) config.get("waitTimeSec");
+            final String podFile = "priority-test/pod-nodeaf-nodeantiaf.yml";
 
-            final List<Pod> deployment1 = getDeployment(client, "priority-level1", podsPerPriorityLevel);
-            // create deployment in the k8s cluster at the correct start time
+            final List<Pod> deployment1 = getDeploymentNodeAffinity(client, "priority-level1",
+                                                                    podsPerPriority, podFile);
+            final List<Pod> deployment2 = getDeploymentNodeAffinity(client, "priority-level2",
+                                                                    podsPerPriority, podFile);
+
             final ListenableFuture<?> scheduledStart1 = scheduledExecutorService.schedule(
                     deployer.startDeployment(deployment1), pr1StartTimeSec, TimeUnit.SECONDS);
-
-            final List<Pod> deployment2 = getDeployment(client, "priority-level2", podsPerPriorityLevel);
-            // create deployment in the k8s cluster at the correct start time
             final ListenableFuture<?> scheduledStart2 = scheduledExecutorService.schedule(
                     deployer.startDeployment(deployment2), pr2StartTimeSec, TimeUnit.SECONDS);
 
@@ -70,7 +72,6 @@ public class KubernetesLocalExpr {
                     deletion.addListener(() -> onComplete2.set(true), scheduledExecutorService);
                 }, scheduledExecutorService);
             deletions.add(onComplete2);
-
             final SettableFuture<Boolean> onComplete1 = SettableFuture.create();
             scheduledStart1.addListener(() -> {
                     final ListenableScheduledFuture<?> deletion =
@@ -90,11 +91,99 @@ public class KubernetesLocalExpr {
         }
     }
 
+    public void runFull(final NamespacedKubernetesClient client, final String configFileName,
+                        final IPodDeployer deployer)
+            throws Exception {
+        // TODO: rich log info
+        LOG.info("Creating local deployment");
+        final int startTimeSec = (int) System.currentTimeMillis() * 1000;
+
+        // Load configuration from file
+        try (final InputStream inputStream = getClass().getClassLoader().getResourceAsStream(configFileName)) {
+            final Yaml yaml = new Yaml();
+            final Map<String, Object> config = yaml.load(inputStream);
+            final int highPriorityPods = (int) config.get("highPriorityPods");
+            final int medPriorityPods = (int) config.get("medPriorityPods");
+            final int lowPriorityPods = (int) config.get("lowPriorityPods");
+            final int schStartTimeSec = (int) config.get("pr1StartTimeSec");
+            final int schEndTimeSec = (int) config.get("pr1EndTimeSec");
+            final int waitTimeSec = (int) config.get("waitTimeSec");
+
+            final List<Pod> deployment1 = getDeployment(client, "priority-level1", lowPriorityPods,
+                                                        "priority-test/pod-lowprior.yml");
+            final List<Pod> deployment2 = getDeployment(client, "priority-level2", medPriorityPods,
+                                                        "priority-test/pod-lowprior.yml");
+            final List<Pod> deployment3 = getDeployment(client, "priority-level3", highPriorityPods,
+                                                        "priority-test/pod-highprior.yml");
+
+            final ListenableFuture<?> scheduledStart1 = scheduledExecutorService.schedule(
+                    deployer.startDeployment(deployment1), schStartTimeSec, TimeUnit.SECONDS);
+            final ListenableFuture<?> scheduledStart2 = scheduledExecutorService.schedule(
+                    deployer.startDeployment(deployment2), schStartTimeSec, TimeUnit.SECONDS);
+            final ListenableFuture<?> scheduledStart3 = scheduledExecutorService.schedule(
+                    deployer.startDeployment(deployment3), schStartTimeSec, TimeUnit.SECONDS);
+
+            final SettableFuture<Boolean> onComplete1 = SettableFuture.create();
+            scheduledStart1.addListener(() -> {
+                    final ListenableScheduledFuture<?> deletion =
+                        scheduledExecutorService.schedule(deployer.endDeployment(deployment1),
+                                                          schEndTimeSec, TimeUnit.SECONDS);
+                    deletion.addListener(() -> onComplete1.set(true), scheduledExecutorService);
+                }, scheduledExecutorService);
+            deletions.add(onComplete1);
+            final SettableFuture<Boolean> onComplete2 = SettableFuture.create();
+            scheduledStart2.addListener(() -> {
+                    final ListenableScheduledFuture<?> deletion =
+                        scheduledExecutorService.schedule(deployer.endDeployment(deployment2),
+                                                          schEndTimeSec, TimeUnit.SECONDS);
+                    deletion.addListener(() -> onComplete2.set(true), scheduledExecutorService);
+                }, scheduledExecutorService);
+            deletions.add(onComplete2);
+            final SettableFuture<Boolean> onComplete3 = SettableFuture.create();
+            scheduledStart3.addListener(() -> {
+                    final ListenableScheduledFuture<?> deletion =
+                        scheduledExecutorService.schedule(deployer.endDeployment(deployment3),
+                                                          schEndTimeSec, TimeUnit.SECONDS);
+                    deletion.addListener(() -> onComplete3.set(true), scheduledExecutorService);
+                }, scheduledExecutorService);
+            deletions.add(onComplete3);
+
+        final int exprTimeSec = (int) System.currentTimeMillis() * 1000 - startTimeSec;
+        final List<Object> objects = Futures.successfulAsList(deletions)
+            .get(schEndTimeSec + waitTimeSec + exprTimeSec, TimeUnit.SECONDS);
+            assert objects.size() != 0;
+
+        } catch (final IOException e) {
+            throw new RuntimeException(e);
+        }
+    }
+
     private List<Pod> getDeployment(final NamespacedKubernetesClient client, final String priority,
-                                    final int podsPerPriorityLevel) {
+                                        final int totalPods, final String podFile) {
         // Load the template file and update its contents to generate a new deployment template
-        final String podFile = "priority-test/pod-nodeaf-nodeantiaf.yml";
-        return IntStream.range(0, podsPerPriorityLevel)
+        return IntStream.range(0, totalPods)
+                .mapToObj(podCount -> {
+                    try (final InputStream fileStream =
+                                 getClass().getClassLoader().getResourceAsStream(podFile)) {
+                        final Pod pod = client.pods().load(fileStream).get();
+
+                        final String podName = "pod-" + priority + "-" + podCount;
+                        pod.getMetadata().setName(podName);
+                        pod.getSpec().setPriorityClassName(priority);
+
+                        return pod;
+                    } catch (final IOException e) {
+                        throw new RuntimeException(e);
+                    }
+                })
+                .collect(Collectors.toList());
+    }
+
+    private List<Pod> getDeploymentNodeAffinity(final NamespacedKubernetesClient client,
+                                                final String priority, final int totalPods,
+                                                final String podFile) {
+        // Load the template file and update its contents to generate a new deployment template
+        return IntStream.range(0, totalPods)
                 .mapToObj(podCount -> {
                     try (final InputStream fileStream =
                                  getClass().getClassLoader().getResourceAsStream(podFile)) {
