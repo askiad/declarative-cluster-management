@@ -11,9 +11,13 @@ import com.google.common.util.concurrent.ListenableScheduledFuture;
 import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.SettableFuture;
-import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.Node;
+import io.fabric8.kubernetes.api.model.NodeList;
+import io.fabric8.kubernetes.api.model.NodeStatus;
 import io.fabric8.kubernetes.api.model.NodeSelectorTerm;
 import io.fabric8.kubernetes.api.model.NodeSelectorRequirement;
+import io.fabric8.kubernetes.api.model.Pod;
+import io.fabric8.kubernetes.api.model.Quantity;
 import io.fabric8.kubernetes.client.NamespacedKubernetesClient;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +25,9 @@ import org.yaml.snakeyaml.Yaml;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collections;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
@@ -108,6 +114,21 @@ public class KubernetesLocalExpr {
             final int schStartTimeSec = (int) config.get("pr1StartTimeSec");
             final int schEndTimeSec = (int) config.get("pr1EndTimeSec");
             final int waitTimeSec = (int) config.get("waitTimeSec");
+            // final Stirng maxPodsPerNode = () config.get("maxPodsPerNode");
+
+            final Map<String, Quantity> quantityMap = new HashMap<>();
+            quantityMap.put("pods", new Quantity("2"));
+
+            final NodeStatus status = new NodeStatus();
+            status.setCapacity(quantityMap);
+            status.setAllocatable(quantityMap);
+            status.setImages(Collections.emptyList());
+
+            final NodeList nodes = client.nodes().list();
+            for (final Node node: nodes.getItems()) {
+                node.setStatus(status);
+                node.getStatus().getCapacity().put("pods", new Quantity("2"));
+            }
 
             final List<Pod> deployment1 = getDeployment(client, "priority-level1", lowPriorityPods,
                                                         "priority-test/pod-lowprior.yml");
@@ -148,9 +169,9 @@ public class KubernetesLocalExpr {
                 }, scheduledExecutorService);
             deletions.add(onComplete3);
 
-        final int exprTimeSec = (int) System.currentTimeMillis() * 1000 - startTimeSec;
-        final List<Object> objects = Futures.successfulAsList(deletions)
-            .get(schEndTimeSec + waitTimeSec + exprTimeSec, TimeUnit.SECONDS);
+            final int exprTimeSec = (int) System.currentTimeMillis() * 1000 - startTimeSec;
+            final List<Object> objects = Futures.successfulAsList(deletions)
+                .get(schEndTimeSec + waitTimeSec + exprTimeSec, TimeUnit.SECONDS);
             assert objects.size() != 0;
 
         } catch (final IOException e) {
@@ -158,8 +179,9 @@ public class KubernetesLocalExpr {
         }
     }
 
-    private List<Pod> getDeployment(final NamespacedKubernetesClient client, final String priority,
-                                        final int totalPods, final String podFile) {
+    private List<Pod> getDeployment(final NamespacedKubernetesClient client,
+                                                  final String priority, final int totalPods,
+                                                  final String podFile) {
         // Load the template file and update its contents to generate a new deployment template
         return IntStream.range(0, totalPods)
                 .mapToObj(podCount -> {
