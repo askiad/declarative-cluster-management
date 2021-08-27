@@ -212,6 +212,8 @@ public class ScopeTest {
             handler.onAddSync(pod);
         }
 
+        // Don't add any pending pods
+
         final Scheduler scheduler = new Scheduler.Builder(dbConnectionPool)
                                                  .setInitialPlacementPolicies(policies)
                                                  .setScopedInitialPlacement(true)
@@ -461,18 +463,6 @@ public class ScopeTest {
         assertEquals(group2Pods, group2Nodes.size());
     }
 
-
-    @Test
-    public void testScopingBug() {
-        final DBConnectionPool dbConnectionPool = new DBConnectionPool();
-        final DSLContext conn = dbConnectionPool.getConnectionToDb();
-        DebugUtils.dbLoad(conn, UUID.fromString("49ccec7f-97a5-42c5-9449-aada5e3dc5af"));
-        final Scheduler scheduler = new Scheduler.Builder(dbConnectionPool)
-                .setScopedInitialPlacement(true)
-                .setDebugMode(true).build();
-        final Result<? extends Record> results = scheduler.initialPlacement();
-        System.out.println(results);
-    }
 
     private Model buildModel(final DSLContext conn) {
         final OrToolsSolver orToolsSolver = new OrToolsSolver.Builder()
