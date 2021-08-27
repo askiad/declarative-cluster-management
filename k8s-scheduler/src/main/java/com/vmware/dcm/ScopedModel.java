@@ -80,7 +80,7 @@ public class ScopedModel {
      * @return Number of nodes to consider
      */
     private int getLimit(final int podCnt) {
-        return (int) Math.ceil(LIMIT_TUNE_DEFAULT * podCnt);
+        return (int) (LIMIT_TUNE_DEFAULT * podCnt + 1);
     }
 
     /**
@@ -173,6 +173,13 @@ public class ScopedModel {
         return (table) -> {
             if (table.getName().equalsIgnoreCase("spare_capacity_per_node")) {
                 final long start = System.nanoTime();
+
+                final Result<?> tableFull = conn.selectFrom(table).fetch();
+                final Result<?> tablePodsToAss = conn.selectFrom(table("PODS_TO_ASSIGN")).fetch();
+
+                System.out.println(tableFull);
+                System.out.println("pods to assign");
+                System.out.println(tablePodsToAss);
 
                 final Result<?> scopedFetcher = conn.selectFrom(table)
                         .where(getWherePredicate(getScopedNodes()))

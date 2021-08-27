@@ -192,6 +192,33 @@ public class ScopeTest {
         assertTrue(scopedNodes.containsAll(randNodes.stream().map(x -> "n" + x).collect(Collectors.toSet())));
     }
 
+    @Test
+    public void testEmptyPodBatch() {
+        final DBConnectionPool dbConnectionPool = new DBConnectionPool();
+        final List<String> policies = Policies.getInitialPlacementPolicies();
+        final NodeResourceEventHandler nodeResourceEventHandler = new NodeResourceEventHandler(dbConnectionPool);
+        final PodEventsToDatabase eventHandler = new PodEventsToDatabase(dbConnectionPool);
+        final PodResourceEventHandler handler = new PodResourceEventHandler(eventHandler::handle);
+
+        final int numNodes = 10;
+        for (int i = 0; i < numNodes; i++) {
+            final Node node = newNode("n" + i, Collections.emptyMap(), Collections.emptyList());
+            nodeResourceEventHandler.onAddSync(node);
+
+            // Add one system pod per node
+            final String podName = "system-pod-n" + i;
+            final Pod pod = newPod(podName, "Running");
+            pod.getSpec().setNodeName("n" + i);
+            handler.onAddSync(pod);
+        }
+
+        final Scheduler scheduler = new Scheduler.Builder(dbConnectionPool)
+                                                 .setInitialPlacementPolicies(policies)
+                                                 .setScopedInitialPlacement(true)
+                                                 .setDebugMode(true).build();
+        scheduler.initialPlacement();
+    }
+
     /*
      * E2E test with scheduler:
      * Test if Scope limits candidate nodes according to spare resources
@@ -432,6 +459,19 @@ public class ScopeTest {
         assertEquals(1, group0Nodes.size());
         // group 2 pods are anti-affine to each other, hence are all scheduled in different nodes
         assertEquals(group2Pods, group2Nodes.size());
+    }
+
+
+    @Test
+    public void testScopingBug() {
+        final DBConnectionPool dbConnectionPool = new DBConnectionPool();
+        final DSLContext conn = dbConnectionPool.getConnectionToDb();
+        DebugUtils.dbLoad(conn, UUID.fromString("49ccec7f-97a5-42c5-9449-aada5e3dc5af"));
+        final Scheduler scheduler = new Scheduler.Builder(dbConnectionPool)
+                .setScopedInitialPlacement(true)
+                .setDebugMode(true).build();
+        final Result<? extends Record> results = scheduler.initialPlacement();
+        System.out.println(results);
     }
 
     private Model buildModel(final DSLContext conn) {
